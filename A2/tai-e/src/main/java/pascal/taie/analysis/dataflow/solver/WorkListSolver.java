@@ -36,7 +36,7 @@ class WorkListSolver<Node, Fact> extends Solver<Node, Fact> {
 
     @Override
     protected void doSolveForward(CFG<Node> cfg, DataflowResult<Node, Fact> result) {
-        var q = new ArrayList<>(cfg.getSuccsOf(cfg.getEntry()));
+        var q = new ArrayList<>(cfg.getNodes());
         while (!q.isEmpty()) {
             var node = q.remove(q.size() - 1);
             for (var pred : cfg.getPredsOf(node)) {

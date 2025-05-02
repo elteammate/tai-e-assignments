@@ -40,11 +40,9 @@ import pascal.taie.ir.exp.FieldAccess;
 import pascal.taie.ir.exp.NewExp;
 import pascal.taie.ir.exp.RValue;
 import pascal.taie.ir.exp.Var;
-import pascal.taie.ir.stmt.AssignStmt;
-import pascal.taie.ir.stmt.If;
-import pascal.taie.ir.stmt.Stmt;
-import pascal.taie.ir.stmt.SwitchStmt;
+import pascal.taie.ir.stmt.*;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
@@ -69,7 +67,55 @@ public class DeadCodeDetection extends MethodAnalysis {
                 ir.getResult(LiveVariableAnalysis.ID);
         // keep statements (dead code) sorted in the resulting set
         Set<Stmt> deadCode = new TreeSet<>(Comparator.comparing(Stmt::getIndex));
-        // TODO - finish me
+        var visited = new TreeSet<>(Comparator.comparing(Stmt::getIndex));
+        var q = new ArrayList<Stmt>();
+        q.add(cfg.getEntry());
+
+        while (!q.isEmpty()) {
+            var node = q.remove(q.size() - 1);
+            if (visited.contains(node)) continue;
+            visited.add(node);
+
+            if (node instanceof AssignStmt<?,?> assignment && assignment.getLValue() instanceof Var var) {
+                if (hasNoSideEffect(assignment.getRValue()) && !liveVars.getResult(node).contains(var)) {
+                    deadCode.add(node);
+                }
+                q.addAll(cfg.getSuccsOf(node));
+            } else if (node instanceof If ifNode) {
+                var condVar = ConstantPropagation.evaluate(ifNode.getCondition(), constants.getResult(node));
+                for (var branch : cfg.getOutEdgesOf(ifNode)) {
+                    if (!condVar.isConstant()
+                        || (condVar.getConstant() != 0 && branch.getKind() == Edge.Kind.IF_TRUE)
+                        || (condVar.getConstant() == 0 && branch.getKind() == Edge.Kind.IF_FALSE)
+                    ) {
+                        q.add(branch.getTarget());
+                    }
+                }
+            } else if (node instanceof SwitchStmt switchNode) {
+                var condVar = ConstantPropagation.evaluate(switchNode.getVar(), constants.getResult(node));
+                for (var branch : cfg.getOutEdgesOf(switchNode)) {
+                    if (!condVar.isConstant()
+                        || (branch.getKind() == Edge.Kind.SWITCH_CASE && condVar.getConstant() == branch.getCaseValue())
+                        || (branch.getKind() == Edge.Kind.SWITCH_DEFAULT &&
+                            cfg.getOutEdgesOf(switchNode).stream().noneMatch(
+                                    b -> b.getKind() == Edge.Kind.SWITCH_CASE &&
+                                            b.getCaseValue() == condVar.getConstant()
+                            ))
+                    ) {
+                        q.add(branch.getTarget());
+                    }
+                }
+            } else {
+                q.addAll(cfg.getSuccsOf(node));
+            }
+        }
+
+        for (var node : cfg.getNodes()) {
+            if (!visited.contains(node) && !node.equals(cfg.getExit())) {
+                deadCode.add(node);
+            }
+        }
+
         // Your task is to recognize dead code in ir and add it to deadCode
         return deadCode;
     }
