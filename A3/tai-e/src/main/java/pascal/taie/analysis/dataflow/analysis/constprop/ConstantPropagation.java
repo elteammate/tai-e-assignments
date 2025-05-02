@@ -60,7 +60,9 @@ public class ConstantPropagation extends
     public CPFact newBoundaryFact(CFG<Stmt> cfg) {
         var result = new CPFact();
         for (var param : cfg.getIR().getParams()) {
-            result.update(param, Value.getNAC());
+            if (canHoldInt(param)) {
+                result.update(param, Value.getNAC());
+            }
         }
         return result;
     }
