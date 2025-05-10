@@ -24,6 +24,7 @@ package pascal.taie.analysis.pta.core.cs.context;
 
 import pascal.taie.util.AnalysisException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**

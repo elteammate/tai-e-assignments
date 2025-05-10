@@ -264,15 +264,8 @@ class Solver {
             if (ir.getThis() != null) {
                 workList.addEntry(pointerFlowGraph.getVarPtr(ir.getThis()), new PointsToSet(recv));
             }
-            if (callGraph.contains(m)) continue;
             addReachable(m);
-            var callKind = call.isVirtual() ? CallKind.VIRTUAL
-                    : call.isDynamic() ? CallKind.DYNAMIC
-                    : call.isInterface() ? CallKind.INTERFACE
-                    : call.isSpecial() ? CallKind.SPECIAL
-                    : CallKind.OTHER;
-
-            callGraph.addEdge(new Edge<>(callKind, call, m));
+            if (!callGraph.addEdge(new Edge<>(CallGraphs.getCallKind(call), call, m))) continue;
 
             for (var i = 0; i < ir.getParams().size(); ++i) {
                 var arg = call.getRValue().getArg(i);
